@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Sentiment Analyzer</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Form submission handler
+            document.getElementById('analysisForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                const resultsDiv = document.getElementById('results');
+                const errorDiv = document.getElementById('error');
+                const loadingDiv = document.getElementById('loading');
+
+                // Clear previous state
+                errorDiv.textContent = '';
+                resultsDiv.innerHTML = '';
+                loadingDiv.style.display = 'block';
+
+                try {
+                    // Validate required fields
+                    const videoId = formData.get('video_id');
+                    
+                    if (!videoId.trim()) {
+                        throw new Error('Enter a YouTube Video ID');
+                    }
+
+                    // Send request (only YouTube now)
+                    const response = await fetch('/analyze/', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    // Handle response
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Analysis failed');
+                    }
+
+                    const data = await response.json();
+                    displayResults(data.results);
+
+                } catch (error) {
+                    errorDiv.textContent = error.message;
+                } finally {
+                    loadingDiv.style.display = 'none';
+                }
+            });
+
+            // Display results
+            function displayResults(results) {
+                const container = document.getElementById('results');
+                container.innerHTML = results.map(result => `
+                    <div class="result-card ${result.sentiment.toLowerCase()}">
+                        <div class="sentiment-tag">${result.sentiment}</div>
+                        <p class="result-content">${result.text}</p>
+                        <div class="result-footer">
+                            <span class="result-date">${new Date(result.created_at).toLocaleString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>YouTube Sentiment Analyzer</h1>
+            <p>Analyze public sentiment from YouTube comments</p>
+        </header>
+
+        <main class="main-content">
+            <form id="analysisForm" class="analysis-form">
+                <div class="form-group">
+                    <label for="video_id" class="input-label">YouTube Video ID</label>
+                    <input type="text" id="video_id" name="video_id" class="text-input"
+                           placeholder="dQw4w9WgXcQ" required>
+                    <small class="input-hint">Found in YouTube video URLs after ?v=</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="count" class="input-label">Number of Comments</label>
+                    <input type="number" id="count" name="count" class="number-input"
+                           min="5" max="100" value="20" required>
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    <span class="btn-text">Analyze Comments</span>
+                    <span class="btn-loader"></span>
+                </button>
+            </form>
+
+            <div id="loading" class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Analyzing comments...</p>
+            </div>
+
+            <div id="error" class="error-alert"></div>
+            <div id="results" class="results-grid"></div>
+        </main>
+    </div>
+</body>
+</html>
